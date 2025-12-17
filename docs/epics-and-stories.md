@@ -1,0 +1,135 @@
+**MVP Epics**
+
+  - Story: Add due date field to task form
+    - Acceptance Criteria:
+      - Field is optional and accepts ISO YYYY-MM-DD input.
+      - Invalid or non-ISO inputs do not block save and are treated as absent.
+      - Saved tasks reflect dueDate only when valid.
+    - Technical Requirements:
+      - Use MUI `TextField` with `type="date"` in [packages/frontend/src/TaskForm.js](packages/frontend/src/TaskForm.js).
+      - Store `due_date` as a `YYYY-MM-DD` string; normalize via `normalizeDateString()`.
+      - On submit, omit `due_date` if invalid; do not send to backend in MVP.
+  - Story: Validate ISO YYYY-MM-DD due dates
+    - Acceptance Criteria:
+      - Valid ISO YYYY-MM-DD strings are accepted.
+      - Invalid values (out-of-range dates, non-ISO formats, empty/whitespace) are ignored and not persisted.
+      - App does not crash on invalid inputs; dueDate is considered absent.
+    - Technical Requirements:
+      - Add `isValidISODate(value)` that checks regex `^\d{4}-\d{2}-\d{2}$` and constructs a local `Date(year, month-1, day)` to verify real dates.
+      - In `TaskForm.js`, gate persistence: `due_date = isValidISODate(dueDate) ? dueDate : null`.
+  - Story: Persist due date in local storage
+    - Acceptance Criteria:
+      - Tasks with valid dueDate are persisted in local storage.
+      - Reloading restores dueDate for those tasks.
+      - Invalid dueDate values are not stored.
+    - Technical Requirements:
+      - Replace `fetch` calls in [packages/frontend/src/App.js](packages/frontend/src/App.js) and [packages/frontend/src/TaskList.js](packages/frontend/src/TaskList.js) with localStorage CRUD using key `todo.tasks`.
+      - Persist objects with shape: `{ id, title, description, due_date, completed, created_at, priority }`.
+      - Use `Date.now()` for `id` and `new Date().toISOString()` for `created_at`.
+  - Story: Display due date in task list
+    - Acceptance Criteria:
+      - Task list shows dueDate when present and valid.
+      - Tasks without dueDate do not display a date.
+    - Technical Requirements:
+      - Continue using `formatDueDate()` in [packages/frontend/src/TaskList.js](packages/frontend/src/TaskList.js) to render a `Chip` with `EventIcon` when `due_date` exists.
+
+  - Story: Add priority field P1/P2/P3
+    - Acceptance Criteria:
+      - Task form provides P1, P2, and P3 as the only selectable values.
+      - Saved tasks contain only these values for priority.
+    - Technical Requirements:
+      - Add a MUI `Select` with options `P1`, `P2`, `P3` to `TaskForm.js`; default to `P3` in state.
+      - Include `priority` in the saved task object and localStorage persistence.
+  - Story: Default priority to P3
+    - Acceptance Criteria:
+      - If no priority is chosen, task saves with priority = "P3".
+      - Default is applied consistently across create flows.
+    - Technical Requirements:
+      - Initialize `const [priority, setPriority] = useState('P3')` and enforce default on submit.
+  - Story: Show priority badges in list
+    - Acceptance Criteria:
+      - Each task displays a visible P1/P2/P3 label in the list.
+      - Label reflects the saved priority value.
+    - Technical Requirements:
+      - Render a MUI `Chip` in `TaskList.js` showing `P1`/`P2`/`P3`.
+      - Color mapping: `P1` `#f44336` (red), `P2` `#ff9800` (orange), `P3` `#9e9e9e` (gray), aligned with [docs/ui-guidelines.md](docs/ui-guidelines.md).
+
+  - Story: Add All filter tab
+    - Acceptance Criteria:
+      - Switching to All displays all tasks (completed and incomplete).
+      - Filter state persists during navigation in the session.
+    - Technical Requirements:
+      - Add MUI `Tabs` in `TaskList.js` with tab state: `All | Today | Overdue` persisted in component state.
+      - All view uses the full localStorage task list.
+  - Story: Add Today filter tab
+    - Acceptance Criteria:
+      - Today shows only incomplete tasks with dueDate equal to the current date.
+      - Tasks without dueDate are excluded.
+    - Technical Requirements:
+      - Compute `today` using local date (no timezone shifts) and compare against `due_date` string.
+      - Filter client-side from localStorage results; do not request backend.
+  - Story: Add Overdue filter tab
+    - Acceptance Criteria:
+      - Overdue shows only incomplete tasks with dueDate earlier than today.
+      - Tasks without dueDate are excluded.
+    - Technical Requirements:
+      - Determine overdue via local comparison (`due_date < today`) and `!completed`.
+      - Implement in `TaskList.js` with pure functions for readability and tests.
+  - Story: Hide completed in Today and Overdue
+    - Acceptance Criteria:
+      - Completed tasks do not appear in Today or Overdue views.
+    - Technical Requirements:
+      - Apply a `!task.completed` predicate within Today/Overdue filters.
+  - Story: Include completed in All
+    - Acceptance Criteria:
+      - Completed tasks appear in All.
+    - Technical Requirements:
+      - All view returns the entire list without completion filtering.
+
+  - Story: Require title field
+    - Acceptance Criteria:
+      - Tasks cannot be created or saved without a non-empty title.
+    - Technical Requirements:
+      - Keep `required` on `TextField` and guard `handleSubmit` in `TaskForm.js` with `title.trim()`.
+  - Story: Ignore invalid due date values
+    - Acceptance Criteria:
+      - Invalid dueDate inputs are discarded and treated as absent; no invalid value is stored or displayed.
+    - Technical Requirements:
+      - On save, set `due_date = null` if `!isValidISODate(dueDate)`; exclude from UI rendering.
+  - Story: Store tasks locally only
+    - Acceptance Criteria:
+      - All task data persists via local storage.
+      - No backend or external storage is used (no network calls required for save/load).
+    - Technical Requirements:
+      - Remove or conditionally bypass all `fetch('/api/tasks')` calls in `App.js` and `TaskList.js` for MVP.
+      - Implement `loadTasks()`, `saveTask()`, `updateTask()`, `deleteTask()`, `toggleComplete()` utilities that read/write `todo.tasks`.
+      - Maintain sorting (MVP) client-side: `due_date ASC`, then `created_at ASC`.
+
+**Post-MVP Epics**
+
+  - Story: Visually emphasize overdue tasks
+    - Acceptance Criteria:
+      - Overdue tasks (incomplete with dueDate earlier than today) have distinct visual emphasis compared to non-overdue.
+    - Technical Requirements:
+      - In `TaskList.js`, apply distinct `sx` styles to overdue items (e.g., border and background emphasis) per [docs/ui-guidelines.md](docs/ui-guidelines.md).
+
+  - Story: Sort overdue tasks first
+    - Acceptance Criteria:
+      - Lists order overdue tasks before non-overdue tasks.
+    - Technical Requirements:
+      - Compute `isOverdue(task)` and sort with overdue=true before overdue=false.
+  - Story: Sort by priority P1→P3
+    - Acceptance Criteria:
+      - Within the same overdue status, tasks are ordered by priority (P1 highest urgency → P3 lowest).
+    - Technical Requirements:
+      - Map `priorityWeight = { P1: 1, P2: 2, P3: 3 }` and sort ascending by weight.
+  - Story: Sort by due date ascending
+    - Acceptance Criteria:
+      - Within the same priority, tasks with earlier dueDate appear before later ones.
+    - Technical Requirements:
+      - Secondary sort by `due_date` when present using local date comparison.
+  - Story: Place undated tasks last
+    - Acceptance Criteria:
+      - Tasks without dueDate are ordered after all dated tasks.
+    - Technical Requirements:
+      - Tertiary sort with `due_date === null` at the end of the list.
