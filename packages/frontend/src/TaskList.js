@@ -206,13 +206,11 @@ function TaskList({ onEdit }) {
               <Chip
                 label={task.priority || 'P3'}
                 size="small"
+                className={task.priority === 'P1' ? 'priority-selected' : 'priority-unselected'}
                 sx={{
                   height: 20,
                   fontSize: '0.7rem',
-                  fontWeight: 600,
-                  background: task.priority === 'P1' ? '#f44336' : 
-                            task.priority === 'P2' ? '#ff9800' : '#9e9e9e',
-                  color: 'white'
+                  fontWeight: 600
                 }}
               />
               {task.due_date && (
